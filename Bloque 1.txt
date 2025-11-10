@@ -1,0 +1,43 @@
+# ==== Instalación de librerías (ejecutar una vez) ====
+!pip -q install open-clip-torch pillow matplotlib
+
+# ==== Importaciones ====
+import torch, numpy as np
+import open_clip
+from PIL import Image
+import matplotlib.pyplot as plt
+from google.colab import files
+
+# ==== Cargar modelo CLIP (zero-shot) ====
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model, _, preprocess = open_clip.create_model_and_transforms(
+    "ViT-B-32", pretrained="laion2b_s34b_b79k", device=device
+)
+tokenizer = open_clip.get_tokenizer("ViT-B-32")
+
+# ==== Etiquetas de prendas ====
+# (clave en inglés para el modelo; valor en español para mostrar)
+labels = {
+    "T-shirt": "Playera",
+    "shirt": "Camisa",
+    "sweater": "Suéter",
+    "jacket": "Chaqueta/Abrigo",
+    "coat": "Abrigo",
+    "dress": "Vestido",
+    "skirt": "Falda",
+    "pants": "Pantalón",
+    "shorts": "Shorts",
+    "jeans": "Jeans",
+    "boots": "Botas",
+    "sneakers": "Tenis",
+    "sandals": "Sandalias",
+    "no shirt": "Sin camisa"
+}
+
+# ==== Prompts (puedes editar/añadir clases arriba) ====
+text_prompts = [f"a photo of a person wearing {en}" for en in labels.keys()]
+text = tokenizer(text_prompts).to(device)
+
+with torch.no_grad():
+    text_features = model.encode_text(text)
+    text_features /= text_features.norm(dim=-1, keepdim=True)

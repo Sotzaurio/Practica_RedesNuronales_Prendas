@@ -1,0 +1,40 @@
+# ==== Subir 1 o varias fotos ====
+uploaded = files.upload()  # selecciona archivos .jpg/.png
+
+def classify_image(path, topk=5, multi_label_threshold=0.12):
+    img = Image.open(path).convert("RGB")
+    img_input = preprocess(img).unsqueeze(0).to(device)
+
+    with torch.no_grad():
+        image_features = model.encode_image(img_input)
+        image_features /= image_features.norm(dim=-1, keepdim=True)
+
+        # *** Escala correcta de CLIP para logits ***
+        logit_scale = model.logit_scale.exp()
+        logits = (logit_scale * (image_features @ text_features.T)).squeeze(0)
+        probs = logits.softmax(dim=0).cpu().numpy()
+
+    # Mostrar imagen
+    plt.imshow(img); plt.axis('off'); plt.show()
+
+    # TOP-K más probables
+    keys_en = list(labels.keys())
+    idx_sorted = np.argsort(-probs)[:topk]
+    print("Top predicciones:")
+    for rank, i in enumerate(idx_sorted, 1):
+        en = keys_en[i]
+        es = labels[en]
+        print(f"{rank}. {es} ({probs[i]*100:.2f}%)")
+
+    # Reporte multi-etiqueta (todas las que superen el umbral)
+    present = [labels[keys_en[i]] for i, p in enumerate(probs) if p >= multi_label_threshold]
+    if present:
+        print("\nPrendas detectadas (umbral "
+              f"{multi_label_threshold:.2f}): " + ", ".join(present))
+    else:
+        print("\nNo se detectó ninguna prenda por encima del umbral.")
+
+# Clasificar cada imagen subida
+for fname in uploaded.keys():
+    print(f"\n=== {fname} ===")
+    classify_image(fname, topk=5, multi_label_threshold=0.12)
